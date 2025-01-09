@@ -1,0 +1,6 @@
+.python-version
+__pycache__/
+data/
+outputs/
+sys_checks/
+model/
