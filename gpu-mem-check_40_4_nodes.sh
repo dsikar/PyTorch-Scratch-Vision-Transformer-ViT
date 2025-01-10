@@ -30,7 +30,11 @@ module add gnu
 #Run script
 start=$(date +%s) # Record the start time in seconds since epoch
 
-python gpu_mem_check.py
+# python gpu_mem_check.py
+python mem_check_c3.5_sonnet.py
+python mem_check_cgpt01.py
+python mem_check_grok2.py
+python mem_check_gemini2.0.py
 
 end=$(date +%s) # Record the end time in seconds since epoch
 diff=$((end-start)) 
@@ -40,5 +44,5 @@ hours=$((diff / 3600))
 minutes=$(( (diff % 3600) / 60 ))
 seconds=$((diff % 60))
 
-echo "python gpu_mem_check.py - HPC 4 node gpu instance 40gb card instance memory check script execution time: $hours hours, $minutes minutes, $seconds seconds"
+echo "python mem_check.py - HPC 4 node gpu instance 40gb card instance memory check script execution time: $hours hours, $minutes minutes, $seconds seconds"
 
