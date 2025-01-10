@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH -D /users/aczd097/git/vit/PyTorch-Scratch-Vision-Transformer-ViT # working directory
+#SBATCH -D /users/sbrt072/git/PyTorch-Scratch-Vision-Transformer-ViT # working directory
 #SBATCH --job-name gpu80_1n                      # Job name
 #SBATCH --mail-type=ALL                 # Mail events (NONE, BEGIN, END, FAIL, ALL)
 #SBATCH --mail-user=daniel.sikar@city.ac.uk         # Where to send mail
