@@ -70,6 +70,7 @@ if __name__ == '__main__':
     parser.add_argument("--dropout", type=float, default=0.1, help='dropout value')
     parser.add_argument('--model_path', type=str, default='./model', help='path to store trained model')
     parser.add_argument("--load_model", type=bool, default=False, help="load saved model")
+    parser.add_argument('--resume', type=str, default=None, help='path to checkpoint file to resume training from')
 
     start_time = datetime.datetime.now()
     print("Started at " + str(start_time.strftime('%Y-%m-%d %H:%M:%S')))
