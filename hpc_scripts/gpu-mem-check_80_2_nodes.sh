@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH -D /users/sbrt072/git/PyTorch-Scratch-Vision-Transformer-ViT # working directory
-#SBATCH --job-name gpu80_22n                      # Job name
+#SBATCH --job-name gpu80_2n                      # Job name
 #SBATCH --mail-type=ALL                 # Mail events (NONE, BEGIN, END, FAIL, ALL)
 #SBATCH --mail-user=daniel.sikar@city.ac.uk         # Where to send mail
 #SBATCH --partition=preemptgpu			  # Select the correct partition.

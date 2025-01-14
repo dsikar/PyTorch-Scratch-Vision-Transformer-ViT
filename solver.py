@@ -163,7 +163,19 @@ class Solver(object):
             print(f"Best test acc: {best_acc:.2%}\n")
 
             # Save model
-            torch.save(self.model.state_dict(), os.path.join(self.args.model_path, "ViT_model.pt"))
+            import datetime
+
+            # Get the current date and time
+            current_datetime = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+
+            # Create the model name with the current date and time
+            model_name = f"{current_datetime}_ViT_model"
+
+            # Append the accuracy to the model name
+            model_name += f"_{best_acc:.2f}"
+
+            # Save the model with the updated name
+            torch.save(self.model.state_dict(), os.path.join(self.args.model_path, f"{model_name}.pt"))
             
             # Update learning rate using schedulers
             if epoch < self.args.warmup_epochs:

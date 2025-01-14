@@ -30,7 +30,7 @@ module add gnu
 #Run script
 start=$(date +%s) # Record the start time in seconds since epoch
 
-python main.py --dataset cifar10 --n_channels 3 --embed_dim 512 --n_attention_heads 16 --n_layers 12--image_size 32 --epochs 5000
+python main.py --dataset cifar10 --n_channels 3 --embed_dim 512 --n_attention_heads 16 --n_layers 12--image_size 32 --augmentation randaugment --epochs 5000
 
 end=$(date +%s) # Record the end time in seconds since epoch
 diff=$((end-start)) 
