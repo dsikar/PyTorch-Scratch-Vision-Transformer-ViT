@@ -252,7 +252,7 @@ class Solver(object):
 
             # Only save final model on last epoch
             if epoch == self.args.epochs - 1:
-                model_name = f"final_model_acc_{best_acc:.2f}.pt"
+                model_name = f"final_model_acc_{self.best_acc:.2f}.pt"
                 torch.save(self.model.state_dict(), os.path.join(self.args.model_path, model_name))
                 
                 # Delete the last checkpoint if it exists since we have the final model
