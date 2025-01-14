@@ -11,53 +11,129 @@ from model import VisionTransformer, VisionTransformer_pytorch
 class Solver(object):
     def __init__(self, args):
         self.args = args
+        self.start_epoch = 0
+        self.best_acc = 0
 
         # Get data loaders
         self.train_loader, self.test_loader = get_loader(args)
 
-        # Create object of the Vision Transformer
+        # Initialize model
+        self.model = self._create_model()
+        
+        # Initialize tracking arrays
+        self.train_losses = []
+        self.test_losses = []
+        self.train_accuracies = []
+        self.test_accuracies = []
+        
+        # Setup optimizer and schedulers
+        self.optimizer = optim.AdamW(self.model.parameters(), lr=self.args.lr, weight_decay=1e-3)
+        self.schedulers = self._create_schedulers()
+        
+        # Resume from checkpoint if specified
+        if args.resume:
+            self._load_checkpoint(args.resume)
+
+    def _create_model(self):
 
         if self.args.use_torch_transformer_layers:
-            # Uses new Pytorch inbuilt transformer encoder layers
-            self.model = VisionTransformer_pytorch(n_channels=self.args.n_channels,   embed_dim=self.args.embed_dim, 
-                                                   n_layers=self.args.n_layers,       n_attention_heads=self.args.n_attention_heads, 
-                                                   forward_mul=self.args.forward_mul, image_size=self.args.image_size, 
-                                                   patch_size=self.args.patch_size,   n_classes=self.args.n_classes, 
-                                                   dropout=self.args.dropout)
+            model = VisionTransformer_pytorch(n_channels=self.args.n_channels,   embed_dim=self.args.embed_dim, 
+                                            n_layers=self.args.n_layers,       n_attention_heads=self.args.n_attention_heads, 
+                                            forward_mul=self.args.forward_mul, image_size=self.args.image_size, 
+                                            patch_size=self.args.patch_size,   n_classes=self.args.n_classes, 
+                                            dropout=self.args.dropout)
         else:
-            # model from Scratch
-            self.model = VisionTransformer(n_channels=self.args.n_channels,   embed_dim=self.args.embed_dim, 
-                                           n_layers=self.args.n_layers,       n_attention_heads=self.args.n_attention_heads, 
-                                           forward_mul=self.args.forward_mul, image_size=self.args.image_size, 
-                                           patch_size=self.args.patch_size,   n_classes=self.args.n_classes, 
-                                           dropout=self.args.dropout)
-        
+            model = VisionTransformer(n_channels=self.args.n_channels,   embed_dim=self.args.embed_dim, 
+                                    n_layers=self.args.n_layers,       n_attention_heads=self.args.n_attention_heads, 
+                                    forward_mul=self.args.forward_mul, image_size=self.args.image_size, 
+                                    patch_size=self.args.patch_size,   n_classes=self.args.n_classes, 
+                                    dropout=self.args.dropout)
 
         # Push to GPU
         if self.args.is_cuda:
-            self.model = self.model.cuda()
+            model = model.cuda()
 
         # Display Vision Transformer
         print('--------Network--------')
-        print(self.model)       
+        print(model)       
 
         # Training parameters stats
-        n_parameters = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
+        n_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
         print(f"Number of trainable parameters in the model: {n_parameters}")
 
         # Option to load pretrained model
         if self.args.load_model:
             print("Using pretrained model")
-            self.model.load_state_dict(torch.load(os.path.join(self.args.model_path, 'ViT_model.pt')))
+            model.load_state_dict(torch.load(os.path.join(self.args.model_path, 'ViT_model.pt')))
 
         # Training loss function
         self.loss_fn = nn.CrossEntropyLoss()
+        
+        return model
 
-        # Arrays to record training progression
-        self.train_losses     = []
-        self.test_losses      = []
-        self.train_accuracies = []
-        self.test_accuracies  = []
+    def _create_schedulers(self):
+        linear_warmup = optim.lr_scheduler.LinearLR(
+            self.optimizer, 
+            start_factor=1/self.args.warmup_epochs,
+            end_factor=1.0,
+            total_iters=self.args.warmup_epochs-1,
+            last_epoch=-1,
+            verbose=True
+        )
+        cos_decay = optim.lr_scheduler.CosineAnnealingLR(
+            optimizer=self.optimizer,
+            T_max=self.args.epochs-self.args.warmup_epochs,
+            eta_min=1e-5,
+            verbose=True
+        )
+        return [linear_warmup, cos_decay]
+
+    def _load_checkpoint(self, checkpoint_path):
+        print(f"Resuming from checkpoint: {checkpoint_path}")
+        checkpoint = torch.load(checkpoint_path)
+        
+        # Verify compatibility
+        for key, value in vars(checkpoint['args']).items():
+            if key in ['resume', 'checkpoint_frequency']:  # Skip certain args
+                continue
+            if getattr(self.args, key) != value:
+                print(f"Warning: Argument mismatch for {key}: checkpoint={value}, current={getattr(self.args, key)}")
+        
+        # Load model and training state
+        self.model.load_state_dict(checkpoint['model_state_dict'])
+        self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        
+        # Load scheduler states if they exist
+        if checkpoint['linear_warmup_state']:
+            self.schedulers[0].load_state_dict(checkpoint['linear_warmup_state'])
+        if checkpoint['cos_decay_state']:
+            self.schedulers[1].load_state_dict(checkpoint['cos_decay_state'])
+        
+        # Restore training progress
+        self.start_epoch = checkpoint['epoch'] + 1
+        self.best_acc = checkpoint['best_acc']
+        self.train_losses = checkpoint['train_losses']
+        self.test_losses = checkpoint['test_losses']
+        self.train_accuracies = checkpoint['train_accuracies']
+        self.test_accuracies = checkpoint['test_accuracies']
+        
+        print(f"Resuming from epoch {self.start_epoch}")
+
+    def save_checkpoint(self, epoch, optimizer, schedulers, best_acc, checkpoint_path):
+        checkpoint = {
+            'epoch': epoch,
+            'model_state_dict': self.model.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict(),
+            'linear_warmup_state': schedulers[0].state_dict() if epoch < self.args.warmup_epochs else None,
+            'cos_decay_state': schedulers[1].state_dict() if epoch >= self.args.warmup_epochs else None,
+            'best_acc': best_acc,
+            'train_losses': self.train_losses,
+            'test_losses': self.test_losses,
+            'train_accuracies': self.train_accuracies,
+            'test_accuracies': self.test_accuracies,
+            'args': self.args
+        }
+        torch.save(checkpoint, checkpoint_path)
 
     def test_dataset(self, loader):
         # Set Vision Transformer to evaluation mode
@@ -111,18 +187,8 @@ class Solver(object):
         # Track last checkpoint for cleanup
         last_checkpoint_path = None
 
-        # Define optimizer for training the model
-        optimizer = optim.AdamW(self.model.parameters(), lr=self.args.lr, weight_decay=1e-3)
-
-        # scheduler for linear warmup of lr and then cosine decay to 1e-5
-        linear_warmup = optim.lr_scheduler.LinearLR(optimizer, start_factor=1/self.args.warmup_epochs, end_factor=1.0, total_iters=self.args.warmup_epochs-1, last_epoch=-1, verbose=True)
-        cos_decay     = optim.lr_scheduler.CosineAnnealingLR(optimizer=optimizer, T_max=self.args.epochs-self.args.warmup_epochs, eta_min=1e-5, verbose=True)
-
-        # Variable to capture best test accuracy
-        best_acc = 0
-
         # Training loop
-        for epoch in range(self.args.epochs):
+        for epoch in range(self.start_epoch, self.args.epochs):
 
             # Set model to training mode
             self.model.train()
@@ -169,7 +235,13 @@ class Solver(object):
                 # Create new checkpoint
                 checkpoint_name = f"checkpoint_epoch_{epoch+1}_" + datetime.datetime.now().strftime("%Y%m%d%H%M%S") + ".pt"
                 checkpoint_path = os.path.join(self.args.model_path, checkpoint_name)
-                torch.save(self.model.state_dict(), checkpoint_path)
+                self.save_checkpoint(
+                    epoch,
+                    self.optimizer,
+                    self.schedulers,
+                    self.best_acc,
+                    checkpoint_path
+                )
                 last_checkpoint_path = checkpoint_path
                 print(f"Saved checkpoint at epoch {epoch+1}: {checkpoint_path}")
 
@@ -191,9 +263,9 @@ class Solver(object):
             
             # Update learning rate using schedulers
             if epoch < self.args.warmup_epochs:
-                linear_warmup.step()
+                self.schedulers[0].step()
             else:
-                cos_decay.step()
+                self.schedulers[1].step()
 
             # Update training progression metric arrays
             self.train_losses     += [sum(train_epoch_loss)/iters_per_epoch]
