@@ -56,6 +56,9 @@ if __name__ == '__main__':
     parser.add_argument("--patch_size", type=int, default=4, help='patch Size')
     parser.add_argument("--n_channels", type=int, default=1, help='number of channels')
     parser.add_argument('--data_path', type=str, default='./data/', help='path to store downloaded dataset')
+    parser.add_argument('--augmentation', type=str, default='no', 
+                       choices=['no', 'standard', 'randaugment'],
+                       help='type of augmentation to use')
 
     # ViT Arguments
     parser.add_argument("--use_torch_transformer_layers", type=bool, default=False, help="Use PyTorch Transformer Encoder layers instead of using scratch implementation.")
