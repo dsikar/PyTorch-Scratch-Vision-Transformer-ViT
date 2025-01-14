@@ -210,9 +210,9 @@ class Solver(object):
                 loss = self.loss_fn(logits, y)
 
                 # Updating the model
-                optimizer.zero_grad()
+                self.optimizer.zero_grad()
                 loss.backward()
-                optimizer.step()
+                self.optimizer.step()
 
                 # Batch metrics
                 batch_pred            = logits.max(1)[1]
@@ -247,8 +247,8 @@ class Solver(object):
             test_acc, test_loss = self.test(train=((epoch+1)%25==0)) # Test training set every 25 epochs
 
             # Capture best test accuracy
-            best_acc = max(test_acc, best_acc)
-            print(f"Best test acc: {best_acc:.2%}\n")
+            self.best_acc = max(test_acc, self.best_acc)
+            print(f"Best test acc: {self.best_acc:.2%}\n")
 
             # Only save final model on last epoch
             if epoch == self.args.epochs - 1:
