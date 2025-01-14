@@ -46,7 +46,7 @@ if __name__ == '__main__':
     parser.add_argument('--warmup_epochs', type=int, default=10, help='number of epochs to warmup learning rate')
     parser.add_argument('--batch_size', type=int, default=128, help='batch size')
     parser.add_argument('--n_classes', type=int, default=10, help='number of classes in the dataset')
-    parser.add_argument('--n_workers', type=int, default=4, help='number of workers for data loaders')
+    parser.add_argument('--n_workers', type=int, default=2, help='number of workers for data loaders')
     parser.add_argument('--lr', type=float, default=5e-4, help='peak learning rate')
     parser.add_argument('--checkpoint_frequency', type=int, default=0, help='Save model checkpoint every N epochs. 0 means no checkpointing')
     parser.add_argument('--output_path', type=str, default='./outputs', help='path to store training graphs and tsne plots')
