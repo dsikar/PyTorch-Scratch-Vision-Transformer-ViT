@@ -106,6 +106,9 @@ class Solver(object):
 
     def train(self):
         iters_per_epoch = len(self.train_loader)
+        
+        # Track last checkpoint for cleanup
+        last_checkpoint_path = None
 
         # Define optimizer for training the model
         optimizer = optim.AdamW(self.model.parameters(), lr=self.args.lr, weight_decay=1e-3)
@@ -156,26 +159,34 @@ class Solver(object):
                     print(f'Ep: {epoch+1}/{self.args.epochs}\tIt: {i+1}/{iters_per_epoch}\tbatch_loss: {loss:.4f}\tbatch_accuracy: {batch_accuracy:.2%}')
 
             # Test the test set after every epoch
+            # Checkpointing logic
+            if self.args.checkpoint_frequency > 0 and (epoch + 1) % self.args.checkpoint_frequency == 0:
+                # Delete previous checkpoint if it exists
+                if last_checkpoint_path and os.path.exists(last_checkpoint_path):
+                    os.remove(last_checkpoint_path)
+                
+                # Create new checkpoint
+                checkpoint_name = f"checkpoint_epoch_{epoch+1}_" + datetime.datetime.now().strftime("%Y%m%d%H%M%S") + ".pt"
+                checkpoint_path = os.path.join(self.args.model_path, checkpoint_name)
+                torch.save(self.model.state_dict(), checkpoint_path)
+                last_checkpoint_path = checkpoint_path
+                print(f"Saved checkpoint at epoch {epoch+1}: {checkpoint_path}")
+
             test_acc, test_loss = self.test(train=((epoch+1)%25==0)) # Test training set every 25 epochs
 
             # Capture best test accuracy
             best_acc = max(test_acc, best_acc)
             print(f"Best test acc: {best_acc:.2%}\n")
 
-            # Save model
-            import datetime
-
-            # Get the current date and time
-            current_datetime = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-
-            # Create the model name with the current date and time
-            model_name = f"{current_datetime}_ViT_model"
-
-            # Append the accuracy to the model name
-            model_name += f"_{best_acc:.2f}"
-
-            # Save the model with the updated name
-            torch.save(self.model.state_dict(), os.path.join(self.args.model_path, f"{model_name}.pt"))
+            # Only save final model on last epoch
+            if epoch == self.args.epochs - 1:
+                current_datetime = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+                model_name = f"final_model_{current_datetime}_{best_acc:.2f}.pt"
+                torch.save(self.model.state_dict(), os.path.join(self.args.model_path, model_name))
+                
+                # Delete the last checkpoint if it exists since we have the final model
+                if last_checkpoint_path and os.path.exists(last_checkpoint_path):
+                    os.remove(last_checkpoint_path)
             
             # Update learning rate using schedulers
             if epoch < self.args.warmup_epochs:
