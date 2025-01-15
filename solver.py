@@ -13,15 +13,15 @@ class Solver(object):
         self.args = args
         self.start_epoch = 0
         self.best_acc = 0
-        
-        # Save training configuration and parameters
-        self.save_training_notes()
 
         # Get data loaders
         self.train_loader, self.test_loader = get_loader(args)
 
         # Initialize model
         self.model = self._create_model()
+        
+        # Save training configuration and parameters - moved after model creation
+        self.save_training_notes()
         
         # Initialize tracking arrays
         self.train_losses = []
@@ -37,45 +37,41 @@ class Solver(object):
         if args.resume:
             self._load_checkpoint(args.resume)
 
-    def _create_model(self):
+def _create_model(self):
+    if self.args.use_torch_transformer_layers:
+        model = VisionTransformer_pytorch(n_channels=self.args.n_channels,   embed_dim=self.args.embed_dim, 
+                                        n_layers=self.args.n_layers,       n_attention_heads=self.args.n_attention_heads, 
+                                        forward_mul=self.args.forward_mul, image_size=self.args.image_size, 
+                                        patch_size=self.args.patch_size,   n_classes=self.args.n_classes, 
+                                        dropout=self.args.dropout)
+    else:
+        model = VisionTransformer(n_channels=self.args.n_channels,   embed_dim=self.args.embed_dim, 
+                                n_layers=self.args.n_layers,       n_attention_heads=self.args.n_attention_heads, 
+                                forward_mul=self.args.forward_mul, image_size=self.args.image_size, 
+                                patch_size=self.args.patch_size,   n_classes=self.args.n_classes, 
+                                dropout=self.args.dropout)
 
-        if self.args.use_torch_transformer_layers:
-            model = VisionTransformer_pytorch(n_channels=self.args.n_channels,   embed_dim=self.args.embed_dim, 
-                                            n_layers=self.args.n_layers,       n_attention_heads=self.args.n_attention_heads, 
-                                            forward_mul=self.args.forward_mul, image_size=self.args.image_size, 
-                                            patch_size=self.args.patch_size,   n_classes=self.args.n_classes, 
-                                            dropout=self.args.dropout)
-        else:
-            model = VisionTransformer(n_channels=self.args.n_channels,   embed_dim=self.args.embed_dim, 
-                                    n_layers=self.args.n_layers,       n_attention_heads=self.args.n_attention_heads, 
-                                    forward_mul=self.args.forward_mul, image_size=self.args.image_size, 
-                                    patch_size=self.args.patch_size,   n_classes=self.args.n_classes, 
-                                    dropout=self.args.dropout)
+    # Push to GPU
+    if self.args.is_cuda:
+        model = model.cuda()
 
-        # Push to GPU
-        if self.args.is_cuda:
-            model = model.cuda()
+    # Display Vision Transformer
+    print('--------Network--------')
+    print(model)       
 
-        # Display Vision Transformer
-        print('--------Network--------')
-        print(model)       
+    # Training parameters stats
+    n_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print(f"Number of trainable parameters in the model: {n_parameters}")
 
-        # Training parameters stats
-        n_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
-        print(f"Number of trainable parameters in the model: {n_parameters}")
-        
-        # Save training configuration and parameters
-        self.save_training_notes()
+    # Option to load pretrained model
+    if self.args.load_model:
+        print("Using pretrained model")
+        model.load_state_dict(torch.load(os.path.join(self.args.model_path, 'ViT_model.pt')))
 
-        # Option to load pretrained model
-        if self.args.load_model:
-            print("Using pretrained model")
-            model.load_state_dict(torch.load(os.path.join(self.args.model_path, 'ViT_model.pt')))
-
-        # Training loss function
-        self.loss_fn = nn.CrossEntropyLoss()
-        
-        return model
+    # Training loss function
+    self.loss_fn = nn.CrossEntropyLoss()
+    
+    return model
 
     def _create_schedulers(self):
         linear_warmup = optim.lr_scheduler.LinearLR(
