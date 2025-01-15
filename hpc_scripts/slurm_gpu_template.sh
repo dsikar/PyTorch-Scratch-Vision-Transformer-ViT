@@ -14,11 +14,12 @@
 #===============================================================================
 
 #SBATCH --partition=gengpu              # Partition choice gengpu or preemptgpu 
+##SBATCH --partition=nodes              # Run on nodes partition
 #SBATCH --nodes=1                       # Number of nodes
-#SBATCH --ntasks-per-node=1            # Tasks per node
-#SBATCH --cpus-per-task=4              # CPUs per task
+#SBATCH --ntasks-per-node=1             # Tasks per node
+#SBATCH --cpus-per-task=4               # CPUs per task
 #SBATCH --mem=8GB                       # Expected CPU RAM needed
-#SBATCH --time=24:00:00                # Time limit hrs:min:sec
+#SBATCH --time=24:00:00                 # Time limit hrs:min:sec
 
 #===============================================================================
 # GPU Configuration
