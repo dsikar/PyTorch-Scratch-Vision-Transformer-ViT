@@ -232,7 +232,7 @@ class Solver(object):
                     os.remove(last_checkpoint_path)
                 
                 # Create new checkpoint
-                checkpoint_name = f"checkpoint_epoch_{epoch+1}.pt"
+                checkpoint_name = f"{self.args.timestamp_prefix}checkpoint_epoch_{epoch+1}.pt"
                 checkpoint_path = os.path.join(self.args.model_path, checkpoint_name)
                 self.save_checkpoint(
                     epoch,
@@ -252,7 +252,7 @@ class Solver(object):
 
             # Only save final model on last epoch
             if epoch == self.args.epochs - 1:
-                model_name = f"final_model_acc_{self.best_acc:.2f}.pt"
+                model_name = f"{self.args.timestamp_prefix}final_model_acc_{self.best_acc:.2f}.pt"
                 torch.save(self.model.state_dict(), os.path.join(self.args.model_path, model_name))
                 
                 # Delete the last checkpoint if it exists since we have the final model

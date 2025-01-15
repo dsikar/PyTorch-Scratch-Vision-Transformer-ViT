@@ -73,9 +73,11 @@ if __name__ == '__main__':
     parser.add_argument('--resume', type=str, default=None, help='path to checkpoint file to resume training from')
 
     start_time = datetime.datetime.now()
+    timestamp_prefix = start_time.strftime('%Y%m%d%H%M%S_')
     print("Started at " + str(start_time.strftime('%Y-%m-%d %H:%M:%S')))
 
     args = parser.parse_args()
+    args.timestamp_prefix = timestamp_prefix
     args = update_args(args)
     print_args(args)
     
