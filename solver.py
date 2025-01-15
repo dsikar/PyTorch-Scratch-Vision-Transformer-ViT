@@ -1,4 +1,5 @@
 import os
+import sys
 import torch
 import torch.nn as nn
 from torch import optim
@@ -12,6 +13,9 @@ class Solver(object):
         self.args = args
         self.start_epoch = 0
         self.best_acc = 0
+        
+        # Save training configuration and parameters
+        self.save_training_notes()
 
         # Get data loaders
         self.train_loader, self.test_loader = get_loader(args)
@@ -59,6 +63,9 @@ class Solver(object):
         # Training parameters stats
         n_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
         print(f"Number of trainable parameters in the model: {n_parameters}")
+        
+        # Save training configuration and parameters
+        self.save_training_notes()
 
         # Option to load pretrained model
         if self.args.load_model:
@@ -301,4 +308,28 @@ class Solver(object):
         # plt.show()  # Uncomment to display graph
         plt.savefig(os.path.join(self.args.output_path, 'graph_accuracy.png'), bbox_inches='tight')
         plt.close('all')
+
+    def save_training_notes(self):
+        notes_filename = f"{self.args.timestamp_prefix}notes.txt"
+        notes_path = os.path.join(self.args.model_path, notes_filename)
+        
+        # Prepare notes content
+        notes = [
+            "=" * 80,  # Separator
+            f"Training started: {self.args.timestamp_prefix[:-1]}",  # Remove trailing underscore for display
+            "\nCommand Line Arguments:",
+            " ".join(sys.argv),  # Capture command line command
+            "\nModel Parameters:",
+            f"Total trainable parameters: {sum(p.numel() for p in self.model.parameters() if p.requires_grad)}",
+            "\nHyperparameters:",
+        ]
+        
+        # Add all args
+        for k, v in vars(self.args).items():
+            notes.append(f"{k}: {v}")
+        
+        # Write mode: 'a' for append if resuming, 'w' for new file
+        mode = 'a' if self.args.resume else 'w'
+        with open(notes_path, mode) as f:
+            f.write('\n'.join(notes) + '\n\n')
 
