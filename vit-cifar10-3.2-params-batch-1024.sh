@@ -37,7 +37,8 @@ python main.py --dataset cifar10 --n_channels 3 --embed_dim 128 \
 --batch_size 1024 \
 --augmentation randaugment \
 --checkpoint_frequency 100 \
---n_attention_heads 4 --n_layers 24 --image_size 32 --epochs 5000
+--n_attention_heads 4 --n_layers 24 --image_size 32 --epochs 5000 \
+--resume /users/aczd097/git/vit/PyTorch-Scratch-Vision-Transformer-ViT/model/cifar10/20250115122418_checkpoint_epoch_2800.pt
 
 end=$(date +%s) # Record the end time in seconds since epoch
 diff=$((end-start)) 
