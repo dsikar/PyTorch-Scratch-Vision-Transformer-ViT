@@ -1,52 +1,97 @@
 #!/bin/bash
-#SBATCH -D /users/aczd097/git/vit/PyTorch-Scratch-Vision-Transformer-ViT # working directory
-#SBATCH --job-name 3.2B1024                      # Job name
-#SBATCH --mail-type=ALL                 # Mail events (NONE, BEGIN, END, FAIL, ALL)
-#SBATCH --mail-user=daniel.sikar@city.ac.uk         # Where to send mail
-#SBATCH --partition=gengpu			  # Select the correct partition.
-#SBATCH --nodes=1                                  # Run on 1 nodes (each node has 48 cores)
-#SBATCH --ntasks-per-node=1                        # Run one task
-#SBATCH --cpus-per-task=2                          # Use 4 cores, most of the procesing happens on the GPU        
-#SBATCH --mem=4GB                                 # Expected ammount CPU RAM needed (Not GPU Memory)
-#SBATCH --time=72:00:00                          # Time limit hrs:min:sec
-#SBATCH --gres=gpu:a100:1					#will run on a 40gb card
-#SBATCH -e outputs/%x_%j.e                         # Standard output and error log [%j is replaced with the jobid]
-#SBATCH -o outputs/%x_%j.o                         # [%x with the job name], make sure 'results' folder exists.
 
-# from cmarshall's msg
-# gres=gpu:a100:1 #will run on a 40gb card
-# gres=gpu:a100_80g:1 #will run on a 80gb card
+#===============================================================================
+# SLURM Batch Script with Email Notification
+# Vision Transformer Training - vit-cifar10-3.2-params-batch-1024.sh
+#===============================================================================
 
-#Enable modules command
+#SBATCH -D /users/aczd097/git/vit/PyTorch-Scratch-Vision-Transformer-ViT    # Working directory
+#SBATCH --job-name 3.2B1024                                                 # Job name (8 characters or less)
+#SBATCH --mail-type=ALL                                                     # Mail events (NONE, BEGIN, END, FAIL, ALL)
+#SBATCH --mail-user=daniel.sikar@city.ac.uk                                 # Where to send mail
+
+#===============================================================================
+# Resource Configuration
+#===============================================================================
+
+#SBATCH --partition=gengpu            # Partition choice: gengpu or preemptgpu
+#SBATCH --nodes=1                     # Number of nodes
+#SBATCH --ntasks-per-node=1           # Tasks per node
+#SBATCH --cpus-per-task=2             # CPUs per task
+#SBATCH --mem=4GB                     # Expected CPU RAM needed
+#SBATCH --time=72:00:00               # Time limit hrs:min:sec
+
+#===============================================================================
+# GPU Configuration
+#===============================================================================
+
+#SBATCH --gres=gpu:a100:1            # Request 1x A100 40GB GPU on gengpu partition, max 4 GPUs
+##SBATCH --gres=gpu:a100_80g:1       # Uncomment to request 1x A100 80GB GPU on preemptgpu partition, max 2 GPUs
+
+#===============================================================================
+# Output Configuration
+#===============================================================================
+
+#SBATCH -e outputs/%x_%j.e             # Standard error log
+#SBATCH -o outputs/%x_%j.o             # Standard output log
+                                       # %j = job ID, %x = job name
+
+#===============================================================================
+# Environment Setup
+#===============================================================================
+
+# Enable modules command
 source /opt/flight/etc/setup.sh
 flight env activate gridware
 
-#Remove any unwanted modules
+# Clean environment
 module purge
 
-#Modules required
-#module load python/3.7.12 # now loading through pipenv
+# Load required modules
 module add gnu
-#Run script
-start=$(date +%s) # Record the start time in seconds since epoch
+# Add other required modules here if necessary
 
-#python mnist_cnn_train.py #--save-model todo
-# python main.py --dataset mnist --epochs 100
-# python main.py --dataset cifar10 --n_channels 3 --image_size 32 --embed_dim 128 --epochs 1000
+#===============================================================================
+# Main Script
+#===============================================================================
+
+# Record start time
+start=$(date +%s)
+
+# Create outputs directory if it doesn't exist
+mkdir -p outputs
+
+echo "Job started at $(date)"
+
+# Execute the Python training script
 python main.py --dataset cifar10 --n_channels 3 --embed_dim 128 \
---batch_size 1024 \
---augmentation randaugment \
---checkpoint_frequency 100 \
---n_attention_heads 4 --n_layers 24 --image_size 32 --epochs 5000 \
---resume /users/aczd097/git/vit/PyTorch-Scratch-Vision-Transformer-ViT/model/cifar10/20250115122418_checkpoint_epoch_2800.pt
+    --batch_size 1024 \
+    --augmentation randaugment \
+    --checkpoint_frequency 100 \
+    --n_attention_heads 4 --n_layers 24 --image_size 32 --epochs 5000 \
+    --resume /users/aczd097/git/vit/PyTorch-Scratch-Vision-Transformer-ViT/model/cifar10/20250115122418_checkpoint_epoch_2800.pt
 
-end=$(date +%s) # Record the end time in seconds since epoch
-diff=$((end-start)) 
+#===============================================================================
+# Email Job Output and Calculate Duration
+#===============================================================================
+
+# Get the output file path
+output_file="outputs/${SLURM_JOB_NAME}_${SLURM_JOB_ID}.o"
+
+# Wait for file to be written
+sleep 5
+
+# Send last 100 lines by email
+tail -n 100 "$output_file" | mail -s "Job ${SLURM_JOB_NAME} (${SLURM_JOB_ID}) Output" daniel.sikar@city.ac.uk
+
+# Calculate execution time
+end=$(date +%s)
+diff=$((end - start))
 
 # Convert seconds to hours, minutes, and seconds
 hours=$((diff / 3600))
-minutes=$(( (diff % 3600) / 60 ))
+minutes=$(((diff % 3600) / 60))
 seconds=$((diff % 60))
 
-echo "python cifar10 vit 3.2 params - HPC gpu instance 40gb card instance script execution time: $hours hours, $minutes minutes, $seconds seconds"
-
+echo "Job completed at $(date)"
+echo "Total execution time: $hours hours, $minutes minutes, $seconds seconds"
